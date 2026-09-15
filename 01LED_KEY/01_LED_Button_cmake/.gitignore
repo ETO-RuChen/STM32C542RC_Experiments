@@ -1,0 +1,35 @@
+# CMake / STM32CubeMX2 build output
+build/
+cmake-build-*/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.ninja
+.ninja_*
+
+# Generated debug / flash artifacts
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.su
+*.o
+*.obj
+*.d
+*.a
+
+# STM32CubeMX2 temporary workspace
+mx.scratch/
+
+# VS Code and STM32CubeIDE extension local state
+.vscode/.cmaketools.json
+.vscode/.cortex-debug.*
+.vscode/ipch/
+.vscode/*.log
+.history/
+
+# Keep project-level STM32CubeIDE extension settings under version control.
+!.settings/
