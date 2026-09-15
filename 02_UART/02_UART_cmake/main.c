@@ -15,6 +15,7 @@
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
+#include "app_uart_demo.h"
 #include "main.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,7 +44,14 @@ int main(void)
     /*
       * You can start your application code here
       */
-    while (1) {}
+    if (App_UartDemo_Init() != SYSTEM_OK)
+    {
+      return (-1);
+    }
+
+    while (1)
+    {
+      App_UartDemo_Process();
+    }
   }
 } /* end main */
-
