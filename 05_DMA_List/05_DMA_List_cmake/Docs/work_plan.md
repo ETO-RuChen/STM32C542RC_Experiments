@@ -1,0 +1,41 @@
+# 实施计划与进度
+
+根据用户提供的 `AGENTS_STM32C542_LPDMA_PROJECT.md` 及确认的 P0～P9 计划执行。
+每阶段区分源码/编译检查与上板实测，不用编译结果替代硬件验收。
+
+| 阶段 | 目标 | 当前状态 / 下一步 |
+| --- | --- | --- |
+| P0 | HAL2、request、节点内存、运行时重连规则核查 | 已核查本地 HAL/LL、板包、链接脚本；RM0522 的运行中重连/取链时序仍待核实 |
+| P1 | 固定 PWM、UART、PC13 EXTI、消抖 | 上电 UART/寄存器通过；用户确认三档亮度及长按行为；进入 P2，示波器定量波形留待补测 |
+| P2 | TIM2_UP Direct DMA 和 USART2 DMA TX | 待 P1 上板通过后实现 |
+| P3 | 同类型静态线性 Linked List | 待 P2 通过；启用 HAL linked-list 功能，验证 Q 操作及错误回调 |
+| P4 | 单通道 UART → TIM → UART → TIM | 核心硬件验收闸门；通过后才进入完整循环图 |
+| P5 | N1～N6 正常循环 | 待 P4 通过；包括 DMA 暗态保持 |
+| P6 | A1～A2 报警循环 | 待 P5 通过；报警必须具有肉眼可辨的亮灭保持时间 |
+| P7 | PC13 安全点 Runtime Relinking | 待 RM0522 核查及 P6 通过；验证快速连续请求的最终收敛 |
+| P8 | 错误诊断、IRQ 和 CPU 睡眠收敛 | 最终仅保留必要异常唤醒；更换消抖时基后才能停 SysTick |
+| P9 | 系统验收和文档完善 | 初始文档已建立；系统实测、波形和故障证据待补充 |
+
+## 本次执行记录（2026-09-16）
+
+- 新增 App、BSP、Config 模块，并接入应用入口及 CMake。
+- 核查 HAL2 的 PWM 启动、UART 发送、EXTI 配置/注册/使能 API。
+- Board pack 2.1.0 / MB2213 B02 声明 B1、LD1 均为高有效。
+- `cube cmake --preset debug_GCC_NUCLEO-C542RC` 成功。
+- `cube cmake --build --preset debug_GCC_NUCLEO-C542RC` 成功，33 个构建步骤，无编译警告。
+- ELF 大小：text 25496 bytes、data 96 bytes、bss 2192 bytes（工具输出值）。
+- 初次 CubeProgrammer 2.23.0 枚举无设备；用户连接后识别到 NUCLEO-C542RC、COM12。
+- ST-LINK V3J17M11，SN `002E00233235510F37333439`；目标 ID=0x44F、Rev Z、3.30 V。
+- 普通连接首次失败；使用 Under Reset / Hardware Reset / SWD 1000 kHz 后烧录和回读校验成功，仅擦写 ELF 覆盖的扇区 0～3。
+- COM12 收到完整 P1 banner 和 PWM=10% / CCR1=100 日志。
+- 通过 ST-LINK GDB server 的 AP1 读取：ready=1、fault=NONE、tim_kernel_hz=144000000、duty_percent=10、uart_messages=2。
+- TIM2 寄存器：CR1=1、DIER=0、PSC=143、ARR=999、CCR1=100、CCER=1；PC 位于 WFI。
+- 此次读取 button_events/raw_edges 均为 0；尚未采集 PA5 波形，未验证物理按键三个档位。
+- 后续用户回答“是”，确认三档亮度及长按/释放验收；P1 功能闸门通过，定量 PA5 波形仍未采集。
+
+## 下一次继续
+
+1. 保持已连接的 ST-LINK / COM12。
+2. 按 `bringup.md` 完成 P1，记录三个 PWM 档位和物理按键结果。
+3. P1 通过后实现 P2。只有符合硬件验收条件才标记阶段完成。
+4. 在实现链表和运行时重连之前补全 P0 的 RM0522 核查，不将推断作为已验证能力。
