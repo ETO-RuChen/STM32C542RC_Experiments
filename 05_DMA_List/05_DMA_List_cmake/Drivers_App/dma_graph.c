@@ -15,6 +15,9 @@ volatile dma_graph_diagnostics_t g_dma_graph;
 enum { N1, N2, N3, N4, N5, N6, A1, A2, NODE_COUNT };
 _Alignas(4) static hal_dma_node_t nodes[NODE_COUNT];
 static hal_q_t normal_q;
+#if APP_PHASE >= 6
+static hal_q_t alarm_q;
+#endif
 static hal_dma_handle_t *graph_dma;
 #if APP_PHASE >= 5
 /* Fixed source: each update reads this same SRAM word during dark hold. */
@@ -137,6 +140,15 @@ void dma_graph_build(void)
   app_check_status(HAL_Q_SetCircularLinkQ_Head(&normal_q), APP_FAULT_QUEUE_BUILD);
 #endif
   g_dma_graph.node_count = normal_q.node_nbr;
+#if APP_PHASE >= 6
+  uart_node(A1, LOG_ALARM);
+  timer_node(A2, pwm_waveform_alarm());
+  app_check_status(HAL_Q_Init(&alarm_q, &HAL_DMA_LinearAddressing_DescOps), APP_FAULT_QUEUE_BUILD);
+  app_check_status(HAL_Q_InsertNode_Tail(&alarm_q, &nodes[A1]), APP_FAULT_QUEUE_BUILD);
+  app_check_status(HAL_Q_InsertNode_Tail(&alarm_q, &nodes[A2]), APP_FAULT_QUEUE_BUILD);
+  app_check_status(HAL_Q_SetCircularLinkQ_Head(&alarm_q), APP_FAULT_QUEUE_BUILD);
+  g_dma_graph.node_count += alarm_q.node_nbr;
+#endif
 }
 
 void dma_graph_start(void)
@@ -162,7 +174,12 @@ void dma_graph_start(void)
 #else
   /* HAL _IT_Opt always enables TC. Start silent then enable only error IRQs;
      no completion callback is needed to advance or repeat the hardware graph. */
-  app_check_status(HAL_DMA_StartLinkedListXfer(graph_dma, &normal_q), APP_FAULT_DMA_START);
+#if APP_PHASE == 6
+  const hal_q_t *start_q = &alarm_q;
+#else
+  const hal_q_t *start_q = &normal_q;
+#endif
+  app_check_status(HAL_DMA_StartLinkedListXfer(graph_dma, start_q), APP_FAULT_DMA_START);
   LL_DMA_EnableIT_DTE(LPDMA1_CH0);
   LL_DMA_EnableIT_ULE(LPDMA1_CH0);
   LL_DMA_EnableIT_USE(LPDMA1_CH0);

@@ -151,7 +151,7 @@ _Noreturn void app_run(void)
 #endif
   app_check_status(bsp_vcp_write(done, sizeof(done) - 1U), APP_FAULT_UART_TX);
   for (;;) { __WFI(); }
-#elif APP_PHASE == 5
+#elif APP_PHASE == 5 || APP_PHASE == 6
   dma_graph_build();
   dma_graph_start();
   g_app_diagnostics.ready = 1U;

@@ -13,5 +13,6 @@ typedef struct
 bool pwm_waveform_init(void);
 pwm_waveform_t pwm_waveform_up(void);
 pwm_waveform_t pwm_waveform_down(void);
+pwm_waveform_t pwm_waveform_alarm(void);
 
 #endif
