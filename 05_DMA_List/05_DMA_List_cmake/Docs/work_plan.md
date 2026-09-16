@@ -14,7 +14,7 @@
 | P6 | A1～A2 报警循环 | 已上板验证重复 Alarm 日志；starts=1、wakeups=0、错误 0；LUT 75 ms 亮/75 ms 暗，共四次 |
 | P7 | PC13 安全点 Runtime Relinking | 已实现并上板改链；5 次物理按键，软件 EXTI 返回正常，starts=1、错误 0；RM 规则和压力边界仍待核查 |
 | P8 | 错误诊断、IRQ 和 CPU 睡眠收敛 | 已完成初始化分类、清除前 DMA 快照及故障注入；SysTick 停、仅必要 IRQ；P1～P7 回归编译通过 |
-| P9 | 系统验收和文档完善 | 初始文档已建立；系统实测、波形和故障证据待补充 |
+| P9 | 系统验收和文档完善 | 文档、复现脚本和有限上板验收已交付；保留 RM、物理双向确认、示波器和长测项 |
 
 ## 本次执行记录（2026-09-16）
 
@@ -103,3 +103,9 @@ TIM6 使用 10 kHz、400 ticks 的 40 ms 单脉冲计数，无 IRQ/DMA；每次�
 - 首次附加前读到 wakeups=0；SysTick CTRL=0x10005、TIM2 DIER=0x100、TIM6 DIER=0、LPDMA CCR=0xC01C01。TIM6 消抖无需 IRQ，TIM2 仅 UDE，DMA 仅 DTE/ULE/USE。
 - 移除 BKPT 后重新烧录并重复 USEF 故障注入，PC 保持 app_fault/WFI、现场完整；复位后重新建图恢复正常。
 - APP_PHASE=1～7 全部回归编译成功，无编译警告，最终返回 7。最终固件连续捕获 45 秒正常日志后首次附加，ready=1、wakeups=0、starts=1、completions=0、errors=0；TIM6 CR1=8（已自动停止）、LPDMA2 CCR=0xC00000（EN=0）。
+
+## P9 交付
+
+README、architecture、dma_nodes、bringup、p0_audit 已与最终实现同步；新增 validation.md，提供 EXTI/消抖/故障测试步骤及证据边界。
+最终 ELF：text=29280、data=96、bss=13024 bytes（GNU size 输出，不等同于动态栈峰值）。源码和 CubeMX2 配置按阶段提交至 GitHub `feat/05-lpdma-demo`，build 产物排除。
+最终板上为 APP_PHASE=7 正常模式，串口和调试助手结束后释放连接。没有把未取得的 RM 依据、未采集的物理波形或长期压力测试标为已通过。

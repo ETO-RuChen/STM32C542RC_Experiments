@@ -12,7 +12,7 @@
 | 单控制器 request | `stm32c5xx_drivers/ll/stm32c5xx_ll_dma.h` | LPDMA1 USART2_TX=15、TIM2_UPD=35；最终优先评估 LPDMA1_CH0 |
 | HAL2 链表 | `stm32c5xx_drivers/hal/stm32c5xx_hal_dma.h` | 存在 FillNodeConfig、StartLinkedListXfer 及 `_IT_Opt` API |
 | 软件队列 | `stm32c5xx_drivers/hal/stm32c5xx_hal_q.h` | 存在 HAL_Q_Init、InsertNode、SetCircularLinkQ 等接口 |
-| 功能开关 | `generated/hal/stm32c5xx_hal_conf.h` | USE_HAL_DMA_LINKEDLIST=0，P3 才启用；DMA 头文件启用 linked-list 时定义 Q circular 支持 |
+| 功能开关 | `generated/hal/stm32c5xx_hal_conf.h`、`Config/app_hal_overrides.h` | 生成器原值为 0，项目 force-include 统一覆盖为 1；DMA 头文件据此定义 Q circular 支持 |
 | 节点对齐 | `stm32c5xx_drivers/hal/stm32c5xx_hal_dma.c` 的 Node management 说明 | 节点必须 32-bit 对齐，不超出 64 KB 寻址窗口 |
 | 链地址编码 | `stm32c5xx_dfp/Include/stm32c542xx.h` | CLBAR.LBA 掩码 0xFFFF0000，CLLR.LA 掩码 0x0000FFFC |
 | 节点布局 | `stm32c5xx_drivers/ll/stm32c5xx_ll_dma.h` | 6 个寄存器字；CLLR 在寄存器数组偏移 20 bytes；HAL 另有 info 字段 |
@@ -41,4 +41,6 @@
 7. 新图存在多个环时，HAL Q 元数据与实际图的边界，以及 IRQ/error 路径是否会遍历已更改的拓扑。
 
 本机工程和已安装包中未找到 RM0522 PDF；访问 ST 的短链接 `https://www.st.com/resource/en/reference_manual/rm0522.pdf` 返回 HTTP 567，未取得文档，不能以此核查硬件安全性。
-P1 固定 PWM/UART/EXTI 验证不依赖运行中重连能力，可先实施。
+用户确认本地也没有 RM0522。后续已按实验方式完成 P1～P7 上板验证及 P8 错误路径验证，详见 work_plan.md；这些实测缩小了不确定范围，但不能替代上述手册核查。
+
+当前 IRQ 错误路径经源码确认：HAL_DMA_IRQHandler 处理 channel flags 并复位通道，不需要遍历已改链的 HAL_Q 图。项目在它之前保存错误寄存器快照。运行中禁止对两个 Q 做拓扑修改或遍历操作。

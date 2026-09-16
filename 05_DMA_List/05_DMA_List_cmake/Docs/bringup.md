@@ -1,6 +1,6 @@
 # P1 上板验收
 
-状态：固件已编译、烧录并回读校验。启动日志和初始 PWM 寄存器已检查，物理按键和实际波形仍待验收。
+本页保留 P1 的复现步骤。启动日志、PWM 寄存器已检查，用户已确认三档亮度和长按行为；定量波形及 20 次按键专项计数未采集。最终 APP_PHASE=7 验证见 [validation.md](validation.md)。
 
 ## 连接和烧录
 
@@ -9,7 +9,7 @@
 3. 编译：
 
    ```powershell
-   cube cmake --preset debug_GCC_NUCLEO-C542RC
+   cube cmake --preset debug_GCC_NUCLEO-C542RC -DAPP_PHASE=1
    cube cmake --build --preset debug_GCC_NUCLEO-C542RC
    ```
 
@@ -60,7 +60,7 @@ CCR1 preload 生效需等待 update 边界，因此首次启动/按键写入与�
 - 相邻上升沿相隔小于 40 ms 时丢弃后续沿，并更新最后沿时间；每次接受需距最近上升沿至少 40 ms。
 - 这是规范允许的时间戳消抖；超过窗口的异常抖动仍可能被视为新事件。若板上测试出现问题，再升级为一次性定时确认。
 - 快速重复按键允许在消抖窗口内被过滤。验收重点是正常单次按下只有一个事件、不死锁、不在 ISR 阻塞。
-- P1 保留 SysTick；将来若停 tick，必须先给消抖替换有效时基。
+- P1 保留 SysTick；最终 APP_PHASE=7 已改用 TIM6 单脉冲计数并停 tick。
 
 ## 调试变量
 
@@ -83,8 +83,8 @@ CCR1 preload 生效需等待 update 边界，因此首次启动/按键写入与�
 正常应满足 `raw_edges = accepted_events + rejected_edges`（uint32 模数计数）。
 调试器逐字段读取可能跨一次中断；需要一致快照时暂停 CPU 后查看。
 
-系统初始化失败仍沿用生成器的返回分类。`SYSTEM_PERIPHERAL_ERROR` 聚合了 UART/TIM/DMA 初始化错误，需在 `mx_usart2_uart_init`、`mx_tim2_init` 的返回处设断点定位；P8 将进一步完善细粒度初始化诊断。
-错误后进入有上下文的停止状态，调试连接存在时触发 BKPT；恢复需复位。
+P8 增加 GNU 链接器 wrapper，将 UART/TIM/DMA 初始化失败分开记录为 APP_FAULT_UART_INIT / TIM_INIT / DMA_INIT，同时保留生成器原始 system_status。GPIO、时钟等仍使用生成器分类。UART/TIM 的内部配置子步骤可在对应生成函数返回处设断点细查。
+错误后保存上下文、关闭中断并 WFI；可在 app_fault 自行设断点，恢复需复位。
 
 ## 验收记录
 
@@ -95,10 +95,10 @@ CCR1 preload 生效需等待 update 边界，因此首次启动/按键写入与�
 | PA5 50% | 1 kHz / 500 us 高 | 待测 |
 | PA5 100% | 高电平，TIM2_CNT 持续计数 | 待测 |
 | 正常按键 20 次 | 每次一个事件，档位顺序正确 | 待测 |
-| 长按/释放 | 无持续重复档位切换 | 待测 |
+| 长按/释放 | 无持续重复档位切换 | 用户已确认 |
 | 快速按键 | 窗口内可过滤，无卡死 | 待测 |
 | TIM2 IRQ | 未启用 update CPU 中断 | 已读 DIER=0 |
 | 空闲 | WFI，SysTick 仍周期唤醒 | 调试器捕获 PC 在 WFI |
 | 故障记录 | fault=0，ready=1 | 已确认 |
 
-P1 通过后再进入 P2 Direct DMA。P1 代码中的固定 duty 操作和阻塞 UART 仅用于本阶段验收，不是最终自主动画/日志调度实现。
+P1 功能闸门已通过，后续阶段记录见 work_plan.md。P1 代码中的固定 duty 操作和阻塞 UART 仅用于本阶段验收，不是最终自主动画/日志调度实现。实验后用 `-DAPP_PHASE=7` 重新构建并烧录最终版本。
