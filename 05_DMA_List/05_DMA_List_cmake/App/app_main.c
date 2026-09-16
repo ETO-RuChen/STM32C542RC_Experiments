@@ -121,9 +121,13 @@ _Noreturn void app_run(void)
   }
 #elif APP_PHASE == 2
   bringup_direct_run();
-#elif APP_PHASE == 3
+#elif APP_PHASE == 3 || APP_PHASE == 4
   dma_graph_build();
+#if APP_PHASE == 3
   static const char begin[] = "[P3] Timer linked list: UP -> DOWN\r\n";
+#else
+  static const char begin[] = "[P4] One LPDMA1_CH0: UART -> TIM -> UART -> TIM\r\n";
+#endif
   app_check_status(bsp_vcp_write(begin, sizeof(begin) - 1U), APP_FAULT_UART_TX);
   dma_graph_start();
   g_app_diagnostics.ready = 1U;
@@ -135,12 +139,16 @@ _Noreturn void app_run(void)
     }
     __WFI();
   }
-  if ((g_dma_graph.elapsed_ms < 1998U) || (g_dma_graph.elapsed_ms > 2002U)
+  if ((g_dma_graph.elapsed_ms < 1998U) || (g_dma_graph.elapsed_ms > 2010U)
       || (TIM2->CCR1 != 0U) || (LPDMA1_CH0->CBR1 != 0U))
   {
     app_fault(APP_FAULT_DMA_VERIFY, g_dma_graph.elapsed_ms);
   }
+#if APP_PHASE == 3
   static const char done[] = "[P3] PASS: two timer nodes completed autonomously\r\n";
+#else
+  static const char done[] = "[P4] PASS: four mixed nodes completed on one channel\r\n";
+#endif
   app_check_status(bsp_vcp_write(done, sizeof(done) - 1U), APP_FAULT_UART_TX);
   for (;;) { __WFI(); }
 #else

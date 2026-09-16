@@ -15,12 +15,13 @@ include(cmake/flags.cmake)
 include(cmake/components.cmake)
 
 # Stubs to be able to add compiler flag overrides, e.g. -Os
-set(APP_PHASE "3" CACHE STRING "Bring-up phase: 1=fixed PWM, 2=direct DMA, 3=timer list")
+set(APP_PHASE "4" CACHE STRING "Bring-up phase: 1=fixed PWM, 2=direct DMA, 3=timer list, 4=mixed list")
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   App/app_main.c
   App/bringup_dma.c
   Drivers_App/dma_graph.c
   Drivers_App/pwm_waveform.c
+  Drivers_App/logger_dma.c
   BSP/bsp_led.c
   BSP/bsp_button.c
   BSP/bsp_vcp.c

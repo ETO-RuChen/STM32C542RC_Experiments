@@ -9,7 +9,7 @@
 | P1 | 固定 PWM、UART、PC13 EXTI、消抖 | 上电 UART/寄存器通过；用户确认三档亮度及长按行为；进入 P2，示波器定量波形留待补测 |
 | P2 | TIM2_UP Direct DMA 和 USART2 DMA TX | 已上板通过：2000 ms、remaining=0、CCR1=0、UART 完成 2 次、错误 0 |
 | P3 | 同类型静态线性 Linked List | 已上板通过：两个 Timer 节点 2000 ms、启动 1 次、完成 1 次、错误 0 |
-| P4 | 单通道 UART → TIM → UART → TIM | 核心硬件验收闸门；通过后才进入完整循环图 |
+| P4 | 单通道 UART → TIM → UART → TIM | 已上板通过：4 节点、starts=1、completions=1、错误 0，UART 文本顺序正确 |
 | P5 | N1～N6 正常循环 | 待 P4 通过；包括 DMA 暗态保持 |
 | P6 | A1～A2 报警循环 | 待 P5 通过；报警必须具有肉眼可辨的亮灭保持时间 |
 | P7 | PC13 安全点 Runtime Relinking | 待 RM0522 核查及 P6 通过；验证快速连续请求的最终收敛 |
@@ -62,3 +62,11 @@ GitHub：沿用现有仓库 `ETO-RuChen/STM32C542RC_Experiments`，按阶段推�
 GDB：node_count=2、starts=1、completions=1、elapsed_ms=2000、error_count=0；两个节点各 4000 bytes，尾节点 CLLR=0，最终 CCR1/CBR1=0。
 整个 8 节点预留数组位于 0x2000020C～0x200002EB，32-bit 对齐且不跨 64 KB 窗口。
 CPU 在链表完成后检查结果，没有通过节点 callback 推进后继。
+
+## P4 实测
+
+`APP_PHASE=4` 使用同一 LPDMA1_CH0 执行 N1 UART、N2 Timer、N3 UART、N4 Timer；LPDMA2 不启动。
+串口顺序：P4 banner → `[NORMAL] Cycle Start` → `[NORMAL] LED Max` → P4 PASS。
+GDB：node_count=4、starts=1、completions=1、elapsed_ms=2000、error_count=0。
+节点读回：UART CTR1=0x8、CTR2=0xC000C00F、目的 TDR=0x40004428；Timer CTR1=0x2000A、CTR2=0xC000C023、目的 CCR1=0x40000034。证明 request、宽度、源/目的与块长度随链表切换。
+计时为 HAL 毫秒分辨率；不能由此断言每个样本边界都严格无相位误差，UART 节点期间 TIM2 持续运行，request 边界行为仍需结合 RM 和波形分析。
