@@ -8,7 +8,7 @@
 | P0 | HAL2、request、节点内存、运行时重连规则核查 | 已核查本地 HAL/LL、板包、链接脚本；RM0522 的运行中重连/取链时序仍待核实 |
 | P1 | 固定 PWM、UART、PC13 EXTI、消抖 | 上电 UART/寄存器通过；用户确认三档亮度及长按行为；进入 P2，示波器定量波形留待补测 |
 | P2 | TIM2_UP Direct DMA 和 USART2 DMA TX | 已上板通过：2000 ms、remaining=0、CCR1=0、UART 完成 2 次、错误 0 |
-| P3 | 同类型静态线性 Linked List | 待 P2 通过；启用 HAL linked-list 功能，验证 Q 操作及错误回调 |
+| P3 | 同类型静态线性 Linked List | 已上板通过：两个 Timer 节点 2000 ms、启动 1 次、完成 1 次、错误 0 |
 | P4 | 单通道 UART → TIM → UART → TIM | 核心硬件验收闸门；通过后才进入完整循环图 |
 | P5 | N1～N6 正常循环 | 待 P4 通过；包括 DMA 暗态保持 |
 | P6 | A1～A2 报警循环 | 待 P5 通过；报警必须具有肉眼可辨的亮灭保持时间 |
@@ -54,3 +54,11 @@
 LUT 只在初始化填充一次；运行过程中未由 CPU 更新 CCR1。计时和完成 IRQ 仅用于单次 bring-up 验收。
 
 GitHub：沿用现有仓库 `ETO-RuChen/STM32C542RC_Experiments`，按阶段推送至 `feat/05-lpdma-demo`；不提交 build 产物。
+
+## P3 实测
+
+`APP_PHASE=3`：启用项目级 linked-list 配置，两个静态 word 节点通过 HAL_Q 连接在 LPDMA1_CH0 上。
+串口收到 `[P3] Timer linked list: UP -> DOWN` 与 `[P3] PASS: two timer nodes completed autonomously`。
+GDB：node_count=2、starts=1、completions=1、elapsed_ms=2000、error_count=0；两个节点各 4000 bytes，尾节点 CLLR=0，最终 CCR1/CBR1=0。
+整个 8 节点预留数组位于 0x2000020C～0x200002EB，32-bit 对齐且不跨 64 KB 窗口。
+CPU 在链表完成后检查结果，没有通过节点 callback 推进后继。

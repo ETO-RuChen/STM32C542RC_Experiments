@@ -5,6 +5,7 @@
 #include "bsp_vcp.h"
 #include "mx_tim2.h"
 #include "bringup_dma.h"
+#include "dma_graph.h"
 
 volatile app_diagnostics_t g_app_diagnostics;
 
@@ -120,6 +121,28 @@ _Noreturn void app_run(void)
   }
 #elif APP_PHASE == 2
   bringup_direct_run();
+#elif APP_PHASE == 3
+  dma_graph_build();
+  static const char begin[] = "[P3] Timer linked list: UP -> DOWN\r\n";
+  app_check_status(bsp_vcp_write(begin, sizeof(begin) - 1U), APP_FAULT_UART_TX);
+  dma_graph_start();
+  g_app_diagnostics.ready = 1U;
+  while (g_dma_graph.completions == 0U)
+  {
+    if (HAL_GetTick() - g_dma_graph.start_ms > 2500U)
+    {
+      app_fault(APP_FAULT_DMA_TIMEOUT, 2500U);
+    }
+    __WFI();
+  }
+  if ((g_dma_graph.elapsed_ms < 1998U) || (g_dma_graph.elapsed_ms > 2002U)
+      || (TIM2->CCR1 != 0U) || (LPDMA1_CH0->CBR1 != 0U))
+  {
+    app_fault(APP_FAULT_DMA_VERIFY, g_dma_graph.elapsed_ms);
+  }
+  static const char done[] = "[P3] PASS: two timer nodes completed autonomously\r\n";
+  app_check_status(bsp_vcp_write(done, sizeof(done) - 1U), APP_FAULT_UART_TX);
+  for (;;) { __WFI(); }
 #else
 #error Unsupported APP_PHASE
 #endif
