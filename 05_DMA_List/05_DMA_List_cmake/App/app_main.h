@@ -36,6 +36,7 @@ typedef struct
   uint32_t duty_percent;
   uint32_t uart_messages;
   uint32_t ready;
+  uint32_t sleep_wakeups;
 } app_diagnostics_t;
 
 extern volatile app_diagnostics_t g_app_diagnostics;

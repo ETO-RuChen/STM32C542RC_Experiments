@@ -10,7 +10,7 @@
 | P2 | TIM2_UP Direct DMA 和 USART2 DMA TX | 已上板通过：2000 ms、remaining=0、CCR1=0、UART 完成 2 次、错误 0 |
 | P3 | 同类型静态线性 Linked List | 已上板通过：两个 Timer 节点 2000 ms、启动 1 次、完成 1 次、错误 0 |
 | P4 | 单通道 UART → TIM → UART → TIM | 已上板通过：4 节点、starts=1、completions=1、错误 0，UART 文本顺序正确 |
-| P5 | N1～N6 正常循环 | 待 P4 通过；包括 DMA 暗态保持 |
+| P5 | N1～N6 正常循环 | 已实测连续日志；starts=1、completion IRQ=0、sleep_wakeups=0，SysTick 中断关闭 |
 | P6 | A1～A2 报警循环 | 待 P5 通过；报警必须具有肉眼可辨的亮灭保持时间 |
 | P7 | PC13 安全点 Runtime Relinking | 待 RM0522 核查及 P6 通过；验证快速连续请求的最终收敛 |
 | P8 | 错误诊断、IRQ 和 CPU 睡眠收敛 | 最终仅保留必要异常唤醒；更换消抖时基后才能停 SysTick |
@@ -70,3 +70,10 @@ CPU 在链表完成后检查结果，没有通过节点 callback 推进后继。
 GDB：node_count=4、starts=1、completions=1、elapsed_ms=2000、error_count=0。
 节点读回：UART CTR1=0x8、CTR2=0xC000C00F、目的 TDR=0x40004428；Timer CTR1=0x2000A、CTR2=0xC000C023、目的 CCR1=0x40000034。证明 request、宽度、源/目的与块长度随链表切换。
 计时为 HAL 毫秒分辨率；不能由此断言每个样本边界都严格无相位误差，UART 节点期间 TIM2 持续运行，request 边界行为仍需结合 RM 和波形分析。
+
+## P5 实测
+
+`APP_PHASE=5`：N1～N6 环包含固定源 zero 的 2000-byte/500 次 update 暗态节点。9 秒捕获中出现四轮 Cycle Start，前三轮 Start/Max/Done 完整有序。
+GDB：node_count=6、starts=1、completions=0、error_count=0、ready=1、sleep_wakeups=0。
+SysTick CTRL=0x00010005，TICKINT=0；DMA 仅使能 DTE/ULE/USE 错误中断，TIM2 DIER 只使能 UDE。
+后续再次读取 wakeups 仍为 0，循环期间 CPU 没有完成回调或周期唤醒。

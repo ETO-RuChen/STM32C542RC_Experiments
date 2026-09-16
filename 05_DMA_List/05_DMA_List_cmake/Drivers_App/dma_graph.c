@@ -16,6 +16,10 @@ enum { N1, N2, N3, N4, N5, N6, A1, A2, NODE_COUNT };
 _Alignas(4) static hal_dma_node_t nodes[NODE_COUNT];
 static hal_q_t normal_q;
 static hal_dma_handle_t *graph_dma;
+#if APP_PHASE >= 5
+/* Fixed source: each update reads this same SRAM word during dark hold. */
+static uint32_t dark_zero;
+#endif
 
 static void graph_error(hal_dma_handle_t *hdma)
 {
@@ -28,6 +32,7 @@ static void graph_error(hal_dma_handle_t *hdma)
   app_fault(APP_FAULT_DMA_RUNTIME, g_dma_graph.error_codes);
 }
 
+#if APP_PHASE < 5
 static void graph_complete(hal_dma_handle_t *hdma)
 {
   (void)hdma;
@@ -36,6 +41,7 @@ static void graph_complete(hal_dma_handle_t *hdma)
   g_dma_graph.elapsed_ms = HAL_GetTick() - g_dma_graph.start_ms;
   ++g_dma_graph.completions;
 }
+#endif
 
 static void build_node(uint32_t index, uint32_t source, uint32_t destination,
                        uint32_t size, bool timer, bool fixed_source)
@@ -106,7 +112,9 @@ void dma_graph_build(void)
   app_check_status(HAL_DMA_SetLinkedListXferExecutionMode(graph_dma, HAL_DMA_LINKEDLIST_EXECUTION_Q),
                     APP_FAULT_DMA_CONFIG);
   app_check_status(HAL_DMA_RegisterXferErrorCallback(graph_dma, graph_error), APP_FAULT_DMA_CONFIG);
+#if APP_PHASE < 5
   app_check_status(HAL_DMA_RegisterXferCpltCallback(graph_dma, graph_complete), APP_FAULT_DMA_CONFIG);
+#endif
   timer_node(N2, pwm_waveform_up());
   timer_node(N4, pwm_waveform_down());
   app_check_status(HAL_Q_Init(&normal_q, &HAL_DMA_LinearAddressing_DescOps), APP_FAULT_QUEUE_BUILD);
@@ -120,6 +128,14 @@ void dma_graph_build(void)
   app_check_status(HAL_Q_InsertNode_Tail(&normal_q, &nodes[N3]), APP_FAULT_QUEUE_BUILD);
 #endif
   app_check_status(HAL_Q_InsertNode_Tail(&normal_q, &nodes[N4]), APP_FAULT_QUEUE_BUILD);
+#if APP_PHASE >= 5
+  uart_node(N5, LOG_CYCLE_DONE);
+  build_node(N6, (uint32_t)&dark_zero, (uint32_t)&TIM2->CCR1,
+             APP_DARK_HOLD_MS * APP_PWM_FREQUENCY_HZ / 1000U * sizeof(uint32_t), true, true);
+  app_check_status(HAL_Q_InsertNode_Tail(&normal_q, &nodes[N5]), APP_FAULT_QUEUE_BUILD);
+  app_check_status(HAL_Q_InsertNode_Tail(&normal_q, &nodes[N6]), APP_FAULT_QUEUE_BUILD);
+  app_check_status(HAL_Q_SetCircularLinkQ_Head(&normal_q), APP_FAULT_QUEUE_BUILD);
+#endif
   g_dma_graph.node_count = normal_q.node_nbr;
 }
 
@@ -140,8 +156,19 @@ void dma_graph_start(void)
 #endif
   __DMB();
   g_dma_graph.start_ms = HAL_GetTick();
+#if APP_PHASE < 5
   app_check_status(HAL_DMA_StartLinkedListXfer_IT_Opt(graph_dma, &normal_q, HAL_DMA_OPT_IT_NONE),
                     APP_FAULT_DMA_START);
+#else
+  /* HAL _IT_Opt always enables TC. Start silent then enable only error IRQs;
+     no completion callback is needed to advance or repeat the hardware graph. */
+  app_check_status(HAL_DMA_StartLinkedListXfer(graph_dma, &normal_q), APP_FAULT_DMA_START);
+  LL_DMA_EnableIT_DTE(LPDMA1_CH0);
+  LL_DMA_EnableIT_ULE(LPDMA1_CH0);
+  LL_DMA_EnableIT_USE(LPDMA1_CH0);
+  HAL_CORTEX_NVIC_DisableIRQ(LPDMA2_CH0_IRQn);
+  HAL_CORTEX_NVIC_DisableIRQ(USART2_IRQn);
+#endif
   ++g_dma_graph.starts;
   LL_TIM_EnableDMAReq_UPDATE(TIM2);
   app_check_status(bsp_led_start(), APP_FAULT_PWM_START);

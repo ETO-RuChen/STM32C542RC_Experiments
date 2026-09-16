@@ -2,8 +2,8 @@
 
 目标平台：NUCLEO-C542RC / STM32C542RCT6，CubeMX2 CMake 工程，STM32C5 HAL2。
 
-当前默认版本为 **P4 单通道异构线性链表验收固件**，已通过上板验证。可通过 `-DAPP_PHASE=1`、`2` 或 `3` 重建早期阶段。
-最终单通道异构循环链表及 Runtime Relinking 仍在后续阶段，当前不具备这些功能。
+当前默认版本为 **P5 单通道异构正常循环**，已通过上板验证。可通过 `-DAPP_PHASE=1`～`4` 重建早期阶段。
+正常环已运行；报警环和 Runtime Relinking 仍在后续阶段。
 
 ## P1 行为（APP_PHASE=1）
 
@@ -23,7 +23,7 @@
 在工程根目录执行（本机 STM32Cube 工具入口为 `cube`）：
 
 ```powershell
-cube cmake --preset debug_GCC_NUCLEO-C542RC -DAPP_PHASE=4
+cube cmake --preset debug_GCC_NUCLEO-C542RC -DAPP_PHASE=5
 cube cmake --build --preset debug_GCC_NUCLEO-C542RC
 ```
 

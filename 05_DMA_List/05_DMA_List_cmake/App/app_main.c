@@ -151,6 +151,18 @@ _Noreturn void app_run(void)
 #endif
   app_check_status(bsp_vcp_write(done, sizeof(done) - 1U), APP_FAULT_UART_TX);
   for (;;) { __WFI(); }
+#elif APP_PHASE == 5
+  dma_graph_build();
+  dma_graph_start();
+  g_app_diagnostics.ready = 1U;
+  HAL_SuspendTick();
+  SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk;
+  for (;;)
+  {
+    __DSB();
+    __WFI();
+    ++g_app_diagnostics.sleep_wakeups;
+  }
 #else
 #error Unsupported APP_PHASE
 #endif
