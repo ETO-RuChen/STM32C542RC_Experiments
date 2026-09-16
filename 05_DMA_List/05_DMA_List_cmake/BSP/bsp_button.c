@@ -36,7 +36,6 @@ static void button_trigger(hal_exti_handle_t *hexti, hal_exti_trigger_t trigger)
 #endif
   ++g_button_diagnostics.raw_edges;
 
-  /* Unsigned subtraction also handles the HAL millisecond tick wrapping. */
   if (rejected != 0U)
   {
     ++g_button_diagnostics.rejected_edges;

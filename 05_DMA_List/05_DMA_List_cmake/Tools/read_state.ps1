@@ -1,7 +1,7 @@
 param(
   [string]$Probe = '002E00233235510F37333439',
   [string]$Firmware = (Join-Path $PSScriptRoot '../build/debug_GCC_NUCLEO-C542RC/05_DMA_List.elf'),
-  [string[]]$Commands = @('p g_app_diagnostics', 'p g_bringup_dma')
+  [string[]]$Commands = @('p g_app_diagnostics', 'p g_dma_graph', 'p g_button_diagnostics')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,8 +23,11 @@ try {
                '-ex', 'set tcp connect-timeout 5', '-ex', 'target remote localhost:61234')
   foreach ($command in $Commands) { $gdbArgs += @('-ex', $command) }
   $gdbArgs += @('-ex', 'detach')
-  & cube arm-none-eabi-gdb @gdbArgs
+  & cube arm-none-eabi-gdb @gdbArgs 2>&1 | Tee-Object -Variable gdbOutput
   if ($LASTEXITCODE -ne 0) { throw 'GDB inspection failed' }
+  if (($gdbOutput -join "`n") -match 'Error in sourced command file|RESULT failed=[1-9]') {
+    throw 'GDB command or hardware test failed'
+  }
 } finally {
   # Only stop the helper launched by this invocation, never another debugger.
   if (-not $server.WaitForExit(3000)) { Stop-Process -Id $server.Id }

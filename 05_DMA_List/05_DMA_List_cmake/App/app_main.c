@@ -39,10 +39,8 @@ _Noreturn void app_fault(app_fault_t fault, uint32_t detail)
   __DSB();
   /* Preserve first-fault evidence even when UART or the HAL tick is unusable. */
   __disable_irq();
-  if ((CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk) != 0U)
-  {
-    __BKPT(0);
-  }
+  /* Set a debugger breakpoint on app_fault when needed. An explicit BKPT can
+     become a HardFault if the debugger detaches after the C_DEBUGEN check. */
   for (;;)
   {
     __WFI();
@@ -52,6 +50,10 @@ _Noreturn void app_fault(app_fault_t fault, uint32_t detail)
 _Noreturn void app_system_fault(uint32_t system_status)
 {
   g_app_diagnostics.system_status = system_status;
+  if (g_app_diagnostics.init_fault != APP_FAULT_NONE)
+  {
+    app_fault(g_app_diagnostics.init_fault, g_app_diagnostics.init_detail);
+  }
   app_fault(APP_FAULT_SYSTEM_INIT, system_status);
 }
 

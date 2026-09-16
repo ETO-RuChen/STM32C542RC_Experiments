@@ -21,6 +21,7 @@ if(NOT APP_PHASE MATCHES "^[1-7]$")
 endif()
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   App/app_main.c
+  App/app_diagnostics.c
   App/bringup_dma.c
   Drivers_App/dma_graph.c
   Drivers_App/pwm_waveform.c
@@ -46,7 +47,11 @@ target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC
 )
 
 target_link_options(${CMAKE_PROJECT_NAME} PUBLIC
-  # Add additional linker flags here
+  "LINKER:--wrap=mx_tim2_init"
+  "LINKER:--wrap=mx_usart2_uart_init"
+  "LINKER:--wrap=HAL_DMA_Init"
+  "LINKER:--wrap=HAL_DMA_SetConfigPeriphDirectXfer"
+  "LINKER:--wrap=HAL_DMA_IRQHandler"
 )
 
 target_link_directories(${CMAKE_PROJECT_NAME} PUBLIC

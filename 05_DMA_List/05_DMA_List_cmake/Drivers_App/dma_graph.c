@@ -11,7 +11,7 @@
 volatile dma_graph_diagnostics_t g_dma_graph;
 
 #if APP_PHASE >= 3
-/* Reserve one contiguous SRAM array for the future normal and alarm nodes. */
+/* All normal/alarm nodes share one SRAM link-address window. */
 enum { N1, N2, N3, N4, N5, N6, A1, A2, NODE_COUNT };
 _Alignas(4) static hal_dma_node_t nodes[NODE_COUNT];
 static hal_q_t normal_q;
@@ -29,14 +29,29 @@ static bool graph_started;
 _Static_assert(LL_DMA_NODE_CLLR_REG_OFFSET == 5U, "Recheck static node format");
 #endif
 
-static void graph_error(hal_dma_handle_t *hdma)
+void dma_graph_capture_error(hal_dma_handle_t *hdma)
 {
   DMA_Channel_TypeDef *channel = HAL_DMA_GetLLInstance(hdma);
-  ++g_dma_graph.error_count;
-  g_dma_graph.error_codes = HAL_DMA_GetLastErrorCodes(hdma);
+  if ((hdma != graph_dma) || (g_dma_graph.error_snapshot_valid != 0U)
+      || ((channel->CSR & (DMA_CSR_DTEF | DMA_CSR_ULEF | DMA_CSR_USEF)) == 0U))
+  {
+    return;
+  }
+  g_dma_graph.error_csr = channel->CSR;
+  g_dma_graph.error_ccr = channel->CCR;
+  g_dma_graph.error_cbr1 = channel->CBR1;
+  g_dma_graph.error_ctr1 = channel->CTR1;
+  g_dma_graph.error_ctr2 = channel->CTR2;
   g_dma_graph.error_cllr = channel->CLLR;
   g_dma_graph.error_src = channel->CSAR;
   g_dma_graph.error_dest = channel->CDAR;
+  g_dma_graph.error_snapshot_valid = 1U;
+}
+
+static void graph_error(hal_dma_handle_t *hdma)
+{
+  ++g_dma_graph.error_count;
+  g_dma_graph.error_codes = HAL_DMA_GetLastErrorCodes(hdma);
   app_fault(APP_FAULT_DMA_RUNTIME, g_dma_graph.error_codes);
 }
 
@@ -198,6 +213,7 @@ void dma_graph_start(void)
   LL_DMA_EnableIT_USE(LPDMA1_CH0);
   HAL_CORTEX_NVIC_DisableIRQ(LPDMA2_CH0_IRQn);
   HAL_CORTEX_NVIC_DisableIRQ(USART2_IRQn);
+  HAL_CORTEX_NVIC_DisableIRQ(TIM2_IRQn);
 #endif
   ++g_dma_graph.starts;
   LL_TIM_EnableDMAReq_UPDATE(TIM2);

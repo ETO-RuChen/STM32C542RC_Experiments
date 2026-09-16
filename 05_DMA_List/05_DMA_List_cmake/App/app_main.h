@@ -24,7 +24,10 @@ typedef enum
   APP_FAULT_NODE_BUILD,
   APP_FAULT_QUEUE_BUILD,
   APP_FAULT_WAVEFORM,
-  APP_FAULT_ILLEGAL_RELINK
+  APP_FAULT_ILLEGAL_RELINK,
+  APP_FAULT_UART_INIT,
+  APP_FAULT_TIM_INIT,
+  APP_FAULT_DMA_INIT
 } app_fault_t;
 
 typedef struct
@@ -40,6 +43,8 @@ typedef struct
   uint32_t ready;
   uint32_t sleep_wakeups;
   app_mode_t desired_mode;
+  app_fault_t init_fault;
+  uint32_t init_detail;
 } app_diagnostics_t;
 
 extern volatile app_diagnostics_t g_app_diagnostics;

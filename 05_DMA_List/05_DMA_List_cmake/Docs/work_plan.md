@@ -13,7 +13,7 @@
 | P5 | N1～N6 正常循环 | 已实测连续日志；starts=1、completion IRQ=0、sleep_wakeups=0，SysTick 中断关闭 |
 | P6 | A1～A2 报警循环 | 已上板验证重复 Alarm 日志；starts=1、wakeups=0、错误 0；LUT 75 ms 亮/75 ms 暗，共四次 |
 | P7 | PC13 安全点 Runtime Relinking | 已实现并上板改链；5 次物理按键，软件 EXTI 返回正常，starts=1、错误 0；RM 规则和压力边界仍待核查 |
-| P8 | 错误诊断、IRQ 和 CPU 睡眠收敛 | TIM6 单次计数完成消抖，SysTick 已停；继续完善故障上下文与检查 |
+| P8 | 错误诊断、IRQ 和 CPU 睡眠收敛 | 已完成初始化分类、清除前 DMA 快照及故障注入；SysTick 停、仅必要 IRQ；P1～P7 回归编译通过 |
 | P9 | 系统验收和文档完善 | 初始文档已建立；系统实测、波形和故障证据待补充 |
 
 ## 本次执行记录（2026-09-16）
@@ -91,3 +91,15 @@ TIM6 使用 10 kHz、400 ticks 的 40 ms 单脉冲计数，无 IRQ/DMA；每次�
 8 秒串口捕获到 13 条 Alarm。经 EXTI13 软件上升沿（SWIER1 bit13）触发相同 ISR 后，6 秒捕获恢复完整 Start/Max/Done 正常序列。
 这是物理按键进入报警及软件 EXTI 返回正常的证据；尚不把物理双向视觉效果或所有竞争边界标为已验收。
 调试器连接会唤醒 WFI，因此此时 wakeups 计数包含调试影响。
+
+## P8 实测
+
+- GNU ld `--wrap` 在独立 `app_diagnostics.c` 拦截生成器初始化调用和 HAL DMA IRQ 入口，未改生成代码。UART/TIM 初始化返回 NULL 可区分；DMA Init/Direct Config 的底层错误优先保留。
+- 分别用 GDB 在 HAL_UART_Init、HAL_TIM_Init、HAL_DMA_Init 强制返回 HAL_ERROR，确认进入 APP_FAULT_UART_INIT、APP_FAULT_TIM_INIT、APP_FAULT_DMA_INIT。其余生成器失败仍保留 system_status 分类。
+- `test_relink.gdb` 注入 32 次 EXTI，上板得到 accepted=32、rejected=0、starts=1、errors=0，两个分支始终匹配期望模式。调试暂停改变真实请求间隔，不能据此宣称无干扰极限压力验收。
+- `test_debounce.gdb` 仅在调试暂停时冻结 TIM6，排除主机暂停时长：32 次事件中 accepted=1、rejected=31；DMA/TIM2 未冻结，错误 0。测试结束恢复原 DBGMCU 冻结配置。
+- 在正常环将 N2 的 SRAM 描述符 CBR1 改为非法 3 bytes，触发 USEF。记录 error_count=1、error_codes=2、error_snapshot_valid=1、CSR=0x1001、CBR1=3、CTR1=0x2000A、目标=0x40000034，ready=0、fault=DMA_RUNTIME。复位恢复有效图。
+- 调试器断开后，显式 BKPT 可能引发附加 HardFault；故障停止改为保存现场后 WFI，调试时可自行在 app_fault 设断点。
+- 首次附加前读到 wakeups=0；SysTick CTRL=0x10005、TIM2 DIER=0x100、TIM6 DIER=0、LPDMA CCR=0xC01C01。TIM6 消抖无需 IRQ，TIM2 仅 UDE，DMA 仅 DTE/ULE/USE。
+- 移除 BKPT 后重新烧录并重复 USEF 故障注入，PC 保持 app_fault/WFI、现场完整；复位后重新建图恢复正常。
+- APP_PHASE=1～7 全部回归编译成功，无编译警告，最终返回 7。最终固件连续捕获 45 秒正常日志后首次附加，ready=1、wakeups=0、starts=1、completions=0、errors=0；TIM6 CR1=8（已自动停止）、LPDMA2 CCR=0xC00000（EN=0）。
