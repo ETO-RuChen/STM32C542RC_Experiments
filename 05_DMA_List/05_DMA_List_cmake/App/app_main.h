@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "stm32_hal.h"
+#include "app_mode.h"
 
 typedef enum
 {
@@ -22,7 +23,8 @@ typedef enum
   APP_FAULT_NODE_MEMORY,
   APP_FAULT_NODE_BUILD,
   APP_FAULT_QUEUE_BUILD,
-  APP_FAULT_WAVEFORM
+  APP_FAULT_WAVEFORM,
+  APP_FAULT_ILLEGAL_RELINK
 } app_fault_t;
 
 typedef struct
@@ -37,6 +39,7 @@ typedef struct
   uint32_t uart_messages;
   uint32_t ready;
   uint32_t sleep_wakeups;
+  app_mode_t desired_mode;
 } app_diagnostics_t;
 
 extern volatile app_diagnostics_t g_app_diagnostics;

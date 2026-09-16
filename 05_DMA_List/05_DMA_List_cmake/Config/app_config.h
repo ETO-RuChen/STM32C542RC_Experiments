@@ -8,6 +8,7 @@
 #define APP_PWM_FREQUENCY_HZ        1000U
 #define APP_PWM_PERIOD_COUNTS      1000U
 #define APP_BUTTON_DEBOUNCE_MS      40U
+#define APP_DEBOUNCE_TIMER_HZ       10000U
 #define APP_FADE_UP_MS              1000U
 #define APP_FADE_DOWN_MS            1000U
 #define APP_DARK_HOLD_MS            500U

@@ -77,6 +77,18 @@ static void button_event(void)
 }
 #endif
 
+#if APP_PHASE >= 7
+static void mode_button_event(void)
+{
+  app_mode_t mode = (g_app_diagnostics.desired_mode == APP_MODE_NORMAL)
+                    ? APP_MODE_ALARM : APP_MODE_NORMAL;
+  if (!dma_graph_request_mode(mode)) { app_fault(APP_FAULT_ILLEGAL_RELINK, (uint32_t)mode); }
+  g_app_diagnostics.desired_mode = mode;
+  ++g_app_diagnostics.button_events;
+  ++g_app_diagnostics.processed_events;
+}
+#endif
+
 _Noreturn void app_run(void)
 {
   g_app_diagnostics.tim_kernel_hz = HAL_TIM_GetClockFreq(mx_tim2_gethandle());
@@ -151,9 +163,12 @@ _Noreturn void app_run(void)
 #endif
   app_check_status(bsp_vcp_write(done, sizeof(done) - 1U), APP_FAULT_UART_TX);
   for (;;) { __WFI(); }
-#elif APP_PHASE == 5 || APP_PHASE == 6
+#elif APP_PHASE >= 5
   dma_graph_build();
   dma_graph_start();
+#if APP_PHASE >= 7
+  app_check_status(bsp_button_start(mode_button_event), APP_FAULT_BUTTON_START);
+#endif
   g_app_diagnostics.ready = 1U;
   HAL_SuspendTick();
   SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk;

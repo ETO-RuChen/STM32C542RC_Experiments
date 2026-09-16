@@ -12,8 +12,8 @@
 | P4 | 单通道 UART → TIM → UART → TIM | 已上板通过：4 节点、starts=1、completions=1、错误 0，UART 文本顺序正确 |
 | P5 | N1～N6 正常循环 | 已实测连续日志；starts=1、completion IRQ=0、sleep_wakeups=0，SysTick 中断关闭 |
 | P6 | A1～A2 报警循环 | 已上板验证重复 Alarm 日志；starts=1、wakeups=0、错误 0；LUT 75 ms 亮/75 ms 暗，共四次 |
-| P7 | PC13 安全点 Runtime Relinking | 待 RM0522 核查及 P6 通过；验证快速连续请求的最终收敛 |
-| P8 | 错误诊断、IRQ 和 CPU 睡眠收敛 | 最终仅保留必要异常唤醒；更换消抖时基后才能停 SysTick |
+| P7 | PC13 安全点 Runtime Relinking | 已实现并上板改链；5 次物理按键，软件 EXTI 返回正常，starts=1、错误 0；RM 规则和压力边界仍待核查 |
+| P8 | 错误诊断、IRQ 和 CPU 睡眠收敛 | TIM6 单次计数完成消抖，SysTick 已停；继续完善故障上下文与检查 |
 | P9 | 系统验收和文档完善 | 初始文档已建立；系统实测、波形和故障证据待补充 |
 
 ## 本次执行记录（2026-09-16）
@@ -33,12 +33,10 @@
 - 此次读取 button_events/raw_edges 均为 0；尚未采集 PA5 波形，未验证物理按键三个档位。
 - 后续用户回答“是”，确认三档亮度及长按/释放验收；P1 功能闸门通过，定量 PA5 波形仍未采集。
 
-## 下一次继续
+## 仍需补充的证据
 
-1. 保持已连接的 ST-LINK / COM12。
-2. 按 `bringup.md` 完成 P1，记录三个 PWM 档位和物理按键结果。
-3. P1/P2 功能通过，继续 P3 静态线性链表。只有符合硬件验收条件才标记阶段完成。
-4. 在实现链表和运行时重连之前补全 P0 的 RM0522 核查，不将推断作为已验证能力。
+RM0522 未取得；运行时改链目前作为硬件实验实现，不能以实测代替手册对并发取链规则的保证。
+PA5 定量波形、极端按键边界和长期稳定性应单独补测。
 
 ## P2 实测
 
@@ -83,3 +81,13 @@ SysTick CTRL=0x00010005，TICKINT=0；DMA 仅使能 DTE/ULE/USE 错误中断，T
 `APP_PHASE=6`：正常环和报警环的 8 个节点共用静态 SRAM 数组，启动 A1→A2→A1。
 5 秒捕获到 9 条 `[ALARM] Active`，GDB 显示 starts=1、completions=0、error_count=0、sleep_wakeups=0。
 A2 CBR1=0x960（600 samples / 2400 bytes），每 75 个 update 切换一次亮/暗平台，每轮四次亮灭。
+
+## P7 实测
+
+`APP_PHASE=7` 上电进入正常环。按键 ISR 只更新 N6/A2 的对齐 SRAM CLLR 字；先建立目标环再开放另一环的出口，未调用 stop/restart 或运行中 HAL_Q 操作。
+TIM6 使用 10 kHz、400 ticks 的 40 ms 单脉冲计数，无 IRQ/DMA；每次上升沿重启窗口，窗口内沿被拒绝。SysTick 中断关闭。
+
+先捕获 45 秒正常日志；之后读到物理按键 raw_edges=accepted_events=5、relinks=5、desired_mode=ALARM、starts=1、completions=0、error_count=0。
+8 秒串口捕获到 13 条 Alarm。经 EXTI13 软件上升沿（SWIER1 bit13）触发相同 ISR 后，6 秒捕获恢复完整 Start/Max/Done 正常序列。
+这是物理按键进入报警及软件 EXTI 返回正常的证据；尚不把物理双向视觉效果或所有竞争边界标为已验收。
+调试器连接会唤醒 WFI，因此此时 wakeups 计数包含调试影响。

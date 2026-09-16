@@ -11,6 +11,7 @@ typedef struct
   uint32_t accepted_events;
   uint32_t rejected_edges;
   uint32_t last_edge_ms;
+  uint32_t debounce_restarts;
 } bsp_button_diagnostics_t;
 
 extern volatile bsp_button_diagnostics_t g_button_diagnostics;

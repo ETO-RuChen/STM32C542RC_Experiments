@@ -23,6 +23,11 @@ static hal_dma_handle_t *graph_dma;
 /* Fixed source: each update reads this same SRAM word during dark hold. */
 static uint32_t dark_zero;
 #endif
+#if APP_PHASE >= 7
+static uint32_t branch_words[2];
+static bool graph_started;
+_Static_assert(LL_DMA_NODE_CLLR_REG_OFFSET == 5U, "Recheck static node format");
+#endif
 
 static void graph_error(hal_dma_handle_t *hdma)
 {
@@ -149,6 +154,14 @@ void dma_graph_build(void)
   app_check_status(HAL_Q_SetCircularLinkQ_Head(&alarm_q), APP_FAULT_QUEUE_BUILD);
   g_dma_graph.node_count += alarm_q.node_nbr;
 #endif
+#if APP_PHASE >= 7
+  /* The two target nodes share the same CLBAR window; all nodes use the same
+     full update mask. Precompute complete words, never patch address bytes. */
+  branch_words[APP_MODE_NORMAL] = LL_DMA_UPDATE_ALL | ((uint32_t)&nodes[N1] & DMA_CLLR_LA);
+  branch_words[APP_MODE_ALARM] = LL_DMA_UPDATE_ALL | ((uint32_t)&nodes[A1] & DMA_CLLR_LA);
+  /* While initially normal, any stale visit to Alarm must converge to N1. */
+  nodes[A2].regs[LL_DMA_NODE_CLLR_REG_OFFSET] = branch_words[APP_MODE_NORMAL];
+#endif
 }
 
 void dma_graph_start(void)
@@ -189,5 +202,45 @@ void dma_graph_start(void)
   ++g_dma_graph.starts;
   LL_TIM_EnableDMAReq_UPDATE(TIM2);
   app_check_status(bsp_led_start(), APP_FAULT_PWM_START);
+#if APP_PHASE >= 7
+  graph_started = true;
+#endif
 }
+
+#if APP_PHASE >= 7
+bool dma_graph_request_mode(app_mode_t mode)
+{
+  if (!graph_started || ((mode != APP_MODE_NORMAL) && (mode != APP_MODE_ALARM)))
+  {
+    ++g_dma_graph.rejected_relinks;
+    return false;
+  }
+
+  /* Only aligned SRAM CLLR words are writable at run time. The DMA may have
+     fetched an old word: both old/new successors remain valid static nodes.
+     First close the desired loop, then open the other loop's exit. No HAL Q
+     operations or live channel-register changes are made while running. */
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  volatile uint32_t *normal_link = &nodes[N6].regs[LL_DMA_NODE_CLLR_REG_OFFSET];
+  volatile uint32_t *alarm_link = &nodes[A2].regs[LL_DMA_NODE_CLLR_REG_OFFSET];
+  uint32_t word = branch_words[mode];
+  if (mode == APP_MODE_ALARM)
+  {
+    *alarm_link = word;
+    __DMB();
+    *normal_link = word;
+  }
+  else
+  {
+    *normal_link = word;
+    __DMB();
+    *alarm_link = word;
+  }
+  __DSB();
+  ++g_dma_graph.relinks;
+  __set_PRIMASK(primask);
+  return true;
+}
+#endif
 #endif
