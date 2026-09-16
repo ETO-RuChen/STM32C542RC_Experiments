@@ -7,7 +7,7 @@
 | --- | --- | --- |
 | P0 | HAL2、request、节点内存、运行时重连规则核查 | 已核查本地 HAL/LL、板包、链接脚本；RM0522 的运行中重连/取链时序仍待核实 |
 | P1 | 固定 PWM、UART、PC13 EXTI、消抖 | 上电 UART/寄存器通过；用户确认三档亮度及长按行为；进入 P2，示波器定量波形留待补测 |
-| P2 | TIM2_UP Direct DMA 和 USART2 DMA TX | 待 P1 上板通过后实现 |
+| P2 | TIM2_UP Direct DMA 和 USART2 DMA TX | 已上板通过：2000 ms、remaining=0、CCR1=0、UART 完成 2 次、错误 0 |
 | P3 | 同类型静态线性 Linked List | 待 P2 通过；启用 HAL linked-list 功能，验证 Q 操作及错误回调 |
 | P4 | 单通道 UART → TIM → UART → TIM | 核心硬件验收闸门；通过后才进入完整循环图 |
 | P5 | N1～N6 正常循环 | 待 P4 通过；包括 DMA 暗态保持 |
@@ -37,5 +37,20 @@
 
 1. 保持已连接的 ST-LINK / COM12。
 2. 按 `bringup.md` 完成 P1，记录三个 PWM 档位和物理按键结果。
-3. P1 通过后实现 P2。只有符合硬件验收条件才标记阶段完成。
+3. P1/P2 功能通过，继续 P3 静态线性链表。只有符合硬件验收条件才标记阶段完成。
 4. 在实现链表和运行时重连之前补全 P0 的 RM0522 核查，不将推断作为已验证能力。
+
+## P2 实测
+
+`APP_PHASE=2`：通过 CubeProgrammer 烧录/校验，收到两条完整 DMA 日志：
+
+```text
+[P2] USART2 DMA TX OK; TIM2_UP DMA: 2000 samples / 2000ms
+[P2] PASS: TIM2 DMA complete, CCR1=0, UART DMA complete
+```
+
+运行结束后 GDB/AP1 读取 `g_bringup_dma`：timer_completions=1、uart_completions=2、elapsed_ms=2000、remaining_bytes=0、final_ccr=0、dma_errors=0、uart_errors=0、passed=1。
+`g_app_diagnostics.fault=NONE`、ready=1，PC 位于 bringup_direct_run 的 WFI。
+LUT 只在初始化填充一次；运行过程中未由 CPU 更新 CCR1。计时和完成 IRQ 仅用于单次 bring-up 验收。
+
+GitHub：沿用现有仓库 `ETO-RuChen/STM32C542RC_Experiments`，按阶段推送至 `feat/05-lpdma-demo`；不提交 build 产物。

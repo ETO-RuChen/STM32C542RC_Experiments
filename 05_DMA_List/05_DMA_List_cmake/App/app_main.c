@@ -4,9 +4,11 @@
 #include "bsp_led.h"
 #include "bsp_vcp.h"
 #include "mx_tim2.h"
+#include "bringup_dma.h"
 
 volatile app_diagnostics_t g_app_diagnostics;
 
+#if APP_PHASE == 1
 typedef struct
 {
   uint32_t duty_percent;
@@ -26,8 +28,9 @@ static const bringup_step_t steps[] =
   {50U, duty_50, sizeof(duty_50) - 1U},
   {100U, duty_100, sizeof(duty_100) - 1U}
 };
+#endif
 
-static _Noreturn void app_fault(app_fault_t fault, uint32_t detail)
+_Noreturn void app_fault(app_fault_t fault, uint32_t detail)
 {
   g_app_diagnostics.ready = 0U;
   g_app_diagnostics.fault_detail = detail;
@@ -51,7 +54,7 @@ _Noreturn void app_system_fault(uint32_t system_status)
   app_fault(APP_FAULT_SYSTEM_INIT, system_status);
 }
 
-static void check_status(hal_status_t status, app_fault_t fault)
+void app_check_status(hal_status_t status, app_fault_t fault)
 {
   if (status != HAL_OK)
   {
@@ -59,9 +62,10 @@ static void check_status(hal_status_t status, app_fault_t fault)
   }
 }
 
+#if APP_PHASE == 1
 static void write_message(const char *message, uint32_t size)
 {
-  check_status(bsp_vcp_write(message, size), APP_FAULT_UART_TX);
+  app_check_status(bsp_vcp_write(message, size), APP_FAULT_UART_TX);
   ++g_app_diagnostics.uart_messages;
 }
 
@@ -70,6 +74,7 @@ static void button_event(void)
   /* P1 ISR only records the event. Foreground performs the fixed-duty test. */
   ++g_app_diagnostics.button_events;
 }
+#endif
 
 _Noreturn void app_run(void)
 {
@@ -81,13 +86,14 @@ _Noreturn void app_run(void)
     app_fault(APP_FAULT_PWM_CONFIGURATION, g_app_diagnostics.tim_kernel_hz);
   }
 
+#if APP_PHASE == 1
   uint32_t step = 0U;
-  check_status(bsp_led_set_duty(steps[step].duty_percent), APP_FAULT_PWM_SET_DUTY);
-  check_status(bsp_led_start(), APP_FAULT_PWM_START);
+  app_check_status(bsp_led_set_duty(steps[step].duty_percent), APP_FAULT_PWM_SET_DUTY);
+  app_check_status(bsp_led_start(), APP_FAULT_PWM_START);
   g_app_diagnostics.duty_percent = steps[step].duty_percent;
   write_message(banner, sizeof(banner) - 1U);
   write_message(steps[step].message, steps[step].message_size);
-  check_status(bsp_button_start(button_event), APP_FAULT_BUTTON_START);
+  app_check_status(bsp_button_start(button_event), APP_FAULT_BUTTON_START);
   g_app_diagnostics.ready = 1U;
 
   for (;;)
@@ -95,7 +101,7 @@ _Noreturn void app_run(void)
     if (g_app_diagnostics.processed_events != g_app_diagnostics.button_events)
     {
       step = (step + 1U) % (sizeof(steps) / sizeof(steps[0]));
-      check_status(bsp_led_set_duty(steps[step].duty_percent), APP_FAULT_PWM_SET_DUTY);
+      app_check_status(bsp_led_set_duty(steps[step].duty_percent), APP_FAULT_PWM_SET_DUTY);
       g_app_diagnostics.duty_percent = steps[step].duty_percent;
       write_message(steps[step].message, steps[step].message_size);
       ++g_app_diagnostics.processed_events;
@@ -112,4 +118,9 @@ _Noreturn void app_run(void)
     }
     __set_PRIMASK(primask);
   }
+#elif APP_PHASE == 2
+  bringup_direct_run();
+#else
+#error Unsupported APP_PHASE
+#endif
 }

@@ -2,6 +2,7 @@
 #define APP_MAIN_H
 
 #include <stdint.h>
+#include "stm32_hal.h"
 
 typedef enum
 {
@@ -11,7 +12,13 @@ typedef enum
   APP_FAULT_PWM_SET_DUTY,
   APP_FAULT_PWM_START,
   APP_FAULT_UART_TX,
-  APP_FAULT_BUTTON_START
+  APP_FAULT_BUTTON_START,
+  APP_FAULT_DMA_CONFIG,
+  APP_FAULT_DMA_START,
+  APP_FAULT_DMA_RUNTIME,
+  APP_FAULT_DMA_TIMEOUT,
+  APP_FAULT_DMA_VERIFY,
+  APP_FAULT_UART_RUNTIME
 } app_fault_t;
 
 typedef struct
@@ -30,6 +37,8 @@ typedef struct
 extern volatile app_diagnostics_t g_app_diagnostics;
 
 _Noreturn void app_system_fault(uint32_t system_status);
+_Noreturn void app_fault(app_fault_t fault, uint32_t detail);
+void app_check_status(hal_status_t status, app_fault_t fault);
 _Noreturn void app_run(void);
 
 #endif
