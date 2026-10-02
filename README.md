@@ -40,7 +40,8 @@ STM32C542RC_Experiments/
 ├── README.md                         本文：仓库总入口
 ├── Docs/
 │   ├── 01_工程全景与阅读路线.md      HAL2 目录、启动链、代码所有权
-│   └── 02_构建烧录与操作手册.md      编译、下载、串口和验收步骤
+│   ├── 02_构建烧录与操作手册.md      编译、下载、串口和验收步骤
+│   └── 03_05_DMA_List_详细说明.md    实验 05 的详细设计和阅读路线
 ├── 01_LED_Button/
 │   ├── README.md                     实验 01 说明
 │   ├── 01_LED_Button.ioc2            CubeMX2 配置源
@@ -52,8 +53,7 @@ STM32C542RC_Experiments/
     ├── README.md                     实验 05 入门说明
     ├── 05_DMA_List.ioc2
     └── 05_DMA_List_cmake/
-        ├── README.md                 DMA 实验完整说明
-        └── Docs/                     架构、节点、上板和验证记录
+        └── README.md                 DMA 实验简要说明
 ```
 
 每个实验的 `.ioc2` 是硬件配置源，`*_cmake/` 是导出的源码工程。修改引脚、时钟、DMA 请求或外设参数时，优先修改 `.ioc2` 并重新生成；修改应用行为时，主要编辑 `main.c`、`app_*.c`，以及 05 的 `App/`、`BSP/`、`Config/`、`Drivers_App/`。
@@ -76,11 +76,11 @@ cube cmake --build --preset debug_GCC_NUCLEO-C542RC
 └── 01_LED_Button.map
 ```
 
-其他实验只需进入对应的 `*_cmake` 目录。05 默认构建最终阶段 `APP_PHASE=7`；要显式指定可执行：
+其他实验只需进入对应的 `*_cmake` 目录。05 已固定为最终 DMA 链表路径：
 
 ```powershell
 cd .\05_DMA_List\05_DMA_List_cmake
-cube cmake --preset debug_GCC_NUCLEO-C542RC -DAPP_PHASE=7
+cube cmake --preset debug_GCC_NUCLEO-C542RC
 cube cmake --build --preset debug_GCC_NUCLEO-C542RC
 ```
 
@@ -142,6 +142,7 @@ HAL2 生成代码常把外设句柄设为 `static`，应用不直接访问全局
 
 - [工程全景与 HAL2 文件结构](Docs/01_工程全景与阅读路线.md)：重点解释 HAL2 为什么没有传统 `Core/Src`，每个目录由谁维护，以及中断/构建调用链。
 - [构建烧录与操作手册](Docs/02_构建烧录与操作手册.md)：工具检查、配置、编译、烧录、串口与五个实验的验收步骤。
+- [实验 05 详细说明](Docs/03_05_DMA_List_详细说明.md)：DMA 链表、PWM 波形、UART 日志、按键改链、诊断和修改规则。
 - [实验 01：LED 与按键](01_LED_Button/README.md)
 - [实验 02：UART 与 DMA](02_UART/README.md)
 - [实验 03：TIM6 定时中断](03_TIM/README.md)
@@ -150,4 +151,4 @@ HAL2 生成代码常把外设句柄设为 `static`，应用不直接访问全局
 
 ## 9. 关于验证
 
-编译成功只能证明语法、符号、静态配置和链接地址在当前工具链下成立，不能替代开发板验证。LED 引脚、按钮有效电平、串口端口、STOP1 电流以及 DMA 运行时改链的边界，都需要结合原理图、参考手册和上板现象判断。05 已保存专门的验证记录，其余实验的操作验收步骤见各自 README 与总操作手册。
+编译成功只能证明语法、符号、静态配置和链接地址在当前工具链下成立，不能替代开发板验证。LED 引脚、按钮有效电平、串口端口以及 DMA 运行时改链的边界，都需要结合原理图、参考手册和上板现象判断。实验 05 的当前设计、阅读路线和验证边界见 [详细说明](Docs/03_05_DMA_List_详细说明.md)。
