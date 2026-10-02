@@ -9,13 +9,10 @@
 /** 单通道 DMA 图的构建、运行、改链和首个错误现场。 */
 typedef struct
 {
-  uint32_t node_count;          /**< 当前阶段插入 HAL 队列的节点总数。 */
+  uint32_t node_count;          /**< 正常环和报警环中的节点总数。 */
   uint32_t first_address;       /**< nodes[] 首地址，用于验证 SRAM/link 窗口。 */
   uint32_t last_address;        /**< nodes[] 最后一个字节地址。 */
-  uint32_t starts;              /**< 硬件图启动次数；P5～P7 稳态应一直为 1。 */
-  uint32_t completions;         /**< P3/P4 单次图完成次数。 */
-  uint32_t start_ms;            /**< 单次图启动时的 HAL tick。 */
-  uint32_t elapsed_ms;          /**< P3/P4 单次图完成耗时。 */
+  uint32_t starts;              /**< 硬件图启动次数，正常运行时应为 1。 */
   uint32_t error_count;         /**< DMA 错误回调次数。 */
   uint32_t error_codes;         /**< HAL_DMA_GetLastErrorCodes() 结果。 */
   uint32_t error_cllr;          /**< 错误发生前保存的链接寄存器。 */

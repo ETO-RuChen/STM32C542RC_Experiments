@@ -11,8 +11,7 @@ typedef struct
   uint32_t raw_edges;         /**< 触发沿匹配后的原始 EXTI 次数。 */
   uint32_t accepted_events;   /**< 通过消抖并通知应用的次数。 */
   uint32_t rejected_edges;    /**< 落在消抖窗口内而丢弃的次数。 */
-  uint32_t last_edge_ms;      /**< P1～P6 使用的上一边沿 HAL tick。 */
-  uint32_t debounce_restarts; /**< P7 每次重新启动 TIM6 窗口的次数。 */
+  uint32_t debounce_restarts; /**< 每次重新启动 TIM6 窗口的次数。 */
 } bsp_button_diagnostics_t;
 
 extern volatile bsp_button_diagnostics_t g_button_diagnostics;

@@ -1,7 +1,7 @@
 #ifndef APP_CONFIG_H
 #define APP_CONFIG_H
 
-/* USART2 通过板载 ST-LINK VCP 输出；超时只用于前台阻塞式 bring-up。 */
+/* USART2 通过板载 ST-LINK VCP 输出。 */
 #define APP_UART_BAUDRATE          115200U
 #define APP_UART_TIMEOUT_MS        100U
 

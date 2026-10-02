@@ -59,9 +59,7 @@ hal_status_t __wrap_HAL_DMA_SetConfigPeriphDirectXfer(hal_dma_handle_t *hdma,
 
 void __wrap_HAL_DMA_IRQHandler(hal_dma_handle_t *hdma)
 {
-#if APP_PHASE >= 3
   /* HAL 错误路径会先复位通道再回调，必须在进入真实 IRQ handler 前抓寄存器。 */
   dma_graph_capture_error(hdma);
-#endif
   __real_HAL_DMA_IRQHandler(hdma);
 }

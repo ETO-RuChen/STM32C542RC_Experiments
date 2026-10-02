@@ -14,21 +14,14 @@ include(cmake/files.cmake)
 include(cmake/flags.cmake)
 include(cmake/components.cmake)
 
-# Stubs to be able to add compiler flag overrides, e.g. -Os
-set(APP_PHASE "7" CACHE STRING "Phase: 1=fixed, 2=direct, 3=timer list, 4=mixed, 5=normal, 6=alarm, 7=relink")
-if(NOT APP_PHASE MATCHES "^[1-7]$")
-  message(FATAL_ERROR "APP_PHASE must be 1..7")
-endif()
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   App/app_main.c
   App/app_diagnostics.c
-  App/bringup_dma.c
   Drivers_App/dma_graph.c
   Drivers_App/pwm_waveform.c
   Drivers_App/logger_dma.c
   BSP/bsp_led.c
   BSP/bsp_button.c
-  BSP/bsp_vcp.c
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC
@@ -36,10 +29,6 @@ target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC
   BSP
   Config
   Drivers_App
-)
-
-target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC
-  APP_PHASE=${APP_PHASE}
 )
 
 target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC
