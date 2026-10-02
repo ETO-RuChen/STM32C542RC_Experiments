@@ -51,7 +51,11 @@ int main(void)
 
     while (1)
     {
-      App_TimerToggle_Process();
+      /*
+       * TIM6 的更新中断会唤醒 Cortex-M33，并在回调中翻转 PA5。
+       * 主循环没有前台任务，因此用 WFI 等待中断，避免空循环持续占用 CPU。
+       */
+      __WFI();
     }
   }
 } /* end main */

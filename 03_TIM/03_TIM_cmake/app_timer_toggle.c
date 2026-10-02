@@ -43,14 +43,6 @@ system_status_t App_TimerToggle_Init(void)
 }
 
 /**
-  * brief:  主循环保留任务接口，方便后续加入状态监视或低功耗处理。
-  * retval: None
-  */
-void App_TimerToggle_Process(void)
-{
-}
-
-/**
   * brief:  TIM 更新事件回调；只响应 TIM6，并在中断中翻转 PA5。
   * retval: None
   */

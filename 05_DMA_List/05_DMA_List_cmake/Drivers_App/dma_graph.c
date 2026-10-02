@@ -1,3 +1,10 @@
+/**
+ * @file dma_graph.c
+ * @brief 在一个 LPDMA1_CH0 上构建 UART/TIM 混合节点图并支持运行时改链。
+ *
+ * 节点只在启动前通过 HAL_Q 构建。P7 运行后不再调用队列 API，而只在短
+ * 临界区内更新 N6/A2 描述符的完整 CLLR word；DMA 不停止、不重建。
+ */
 #include "dma_graph.h"
 #include "app_main.h"
 #include "app_config.h"
@@ -69,6 +76,7 @@ static void graph_complete(hal_dma_handle_t *hdma)
 static void build_node(uint32_t index, uint32_t source, uint32_t destination,
                        uint32_t size, bool timer, bool fixed_source)
 {
+  /* 每个节点带完整传输配置，因此同一通道能在节点边界切换 UART/TIM request。 */
   hal_dma_node_config_t config = {0};
   config.xfer.request = timer ? HAL_LPDMA1_REQUEST_TIM2_UPD : HAL_LPDMA1_REQUEST_USART2_TX;
   config.xfer.direction = HAL_DMA_DIRECTION_MEMORY_TO_PERIPH;
@@ -113,6 +121,7 @@ static void uart_node(uint32_t index, logger_dma_id_t log)
 
 void dma_graph_build(void)
 {
+  /* 线性寻址节点的 link 只编码低 16 位，整个数组必须落在同一 64 KB 窗口。 */
   const uint32_t first = (uint32_t)&nodes[0];
   const uint32_t last = first + sizeof(nodes) - 1U;
   /* Current linker RAM is exactly 0x20000000..0x2000ffff (SRAM1+SRAM2). */
@@ -238,6 +247,7 @@ bool dma_graph_request_mode(app_mode_t mode)
      operations or live channel-register changes are made while running. */
   uint32_t primask = __get_PRIMASK();
   __disable_irq();
+  /* volatile 防止编译器把正在被 DMA 并发读取的描述符写入合并或省略。 */
   volatile uint32_t *normal_link = &nodes[N6].regs[LL_DMA_NODE_CLLR_REG_OFFSET];
   volatile uint32_t *alarm_link = &nodes[A2].regs[LL_DMA_NODE_CLLR_REG_OFFSET];
   uint32_t word = branch_words[mode];

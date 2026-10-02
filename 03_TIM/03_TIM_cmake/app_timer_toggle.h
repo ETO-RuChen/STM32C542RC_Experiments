@@ -27,12 +27,6 @@ extern "C" {
   */
 system_status_t App_TimerToggle_Init(void);
 
-/**
-  * brief:  定时器翻转实验主循环任务，当前保留为空任务接口。
-  * retval: None
-  */
-void App_TimerToggle_Process(void);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

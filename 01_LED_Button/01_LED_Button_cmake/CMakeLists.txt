@@ -24,6 +24,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC
 )
 
 target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC
+  # 本实验在 main.c 中轮询 PC13 并去抖，因此必须让 part driver 直接读取 GPIO。
+  # 若保留驱动默认值 1，button_get_state() 会改读仅由 EXTI 更新的事件状态。
   BUTTON_DEBOUNCE=0
 )
 

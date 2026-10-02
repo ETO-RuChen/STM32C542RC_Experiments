@@ -1,3 +1,10 @@
+/**
+ * @file app_main.c
+ * @brief 各 APP_PHASE 的顶层流程、故障停机和最终模式切换入口。
+ *
+ * P1/P2 用于逐项证明 GPIO、PWM、UART 和 Direct DMA；P3～P6 逐步增加
+ * linked-list 图能力；P7 是默认的正常/报警双环运行时改链演示。
+ */
 #include "app_main.h"
 #include "app_config.h"
 #include "bsp_button.h"
@@ -10,6 +17,7 @@
 volatile app_diagnostics_t g_app_diagnostics;
 
 #if APP_PHASE == 1
+/* P1 的三个固定占空比档位和对应前台日志。 */
 typedef struct
 {
   uint32_t duty_percent;
@@ -33,6 +41,7 @@ static const bringup_step_t steps[] =
 
 _Noreturn void app_fault(app_fault_t fault, uint32_t detail)
 {
+  /* 先写 detail 和 fault，最后通过 DSB 保证调试器能看到一致的故障现场。 */
   g_app_diagnostics.ready = 0U;
   g_app_diagnostics.fault_detail = detail;
   g_app_diagnostics.fault = fault;
@@ -82,6 +91,7 @@ static void button_event(void)
 #if APP_PHASE >= 7
 static void mode_button_event(void)
 {
+  /* 此函数在 EXTI13 上下文运行，只提交两次 SRAM link word 写入。 */
   app_mode_t mode = (g_app_diagnostics.desired_mode == APP_MODE_NORMAL)
                     ? APP_MODE_ALARM : APP_MODE_NORMAL;
   if (!dma_graph_request_mode(mode)) { app_fault(APP_FAULT_ILLEGAL_RELINK, (uint32_t)mode); }
@@ -93,6 +103,7 @@ static void mode_button_event(void)
 
 _Noreturn void app_run(void)
 {
+  /* 先验证 CubeMX2 生成配置，防止时钟/ARR 被修改后仍按 1 ms/样本解释。 */
   g_app_diagnostics.tim_kernel_hz = HAL_TIM_GetClockFreq(mx_tim2_gethandle());
   if ((g_app_diagnostics.tim_kernel_hz != APP_TIM_KERNEL_HZ)
       || (TIM2->PSC != APP_PWM_PRESCALER)
@@ -134,8 +145,10 @@ _Noreturn void app_run(void)
     __set_PRIMASK(primask);
   }
 #elif APP_PHASE == 2
+  /* P2 函数自行完成验证，之后永久 WFI，不会返回。 */
   bringup_direct_run();
 #elif APP_PHASE == 3 || APP_PHASE == 4
+  /* P3/P4 是单次图：前台只负责超时和完成后的结果校验。 */
   dma_graph_build();
 #if APP_PHASE == 3
   static const char begin[] = "[P3] Timer linked list: UP -> DOWN\r\n";
@@ -166,6 +179,7 @@ _Noreturn void app_run(void)
   app_check_status(bsp_vcp_write(done, sizeof(done) - 1U), APP_FAULT_UART_TX);
   for (;;) { __WFI(); }
 #elif APP_PHASE >= 5
+  /* P5～P7 的循环完全由 DMA 链接推进，CPU 稳态只等待异常或按键。 */
   dma_graph_build();
   dma_graph_start();
 #if APP_PHASE >= 7

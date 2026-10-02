@@ -1,6 +1,10 @@
 #include "logger_dma.h"
 #include <stddef.h>
 
+/*
+ * DMA 运行时直接从这些 Flash 字符串读数据写 USART2_TDR；CPU 不参与逐条
+ * 日志调度。字符串必须具有静态生命周期，长度不包含 C 字符串结尾的 NUL。
+ */
 static const char cycle_start[] = "[NORMAL] Cycle Start\r\n";
 static const char led_max[] = "[NORMAL] LED Max\r\n";
 static const char cycle_done[] = "[NORMAL] Cycle Done\r\n";
@@ -15,6 +19,9 @@ static const logger_dma_buffer_t buffers[LOG_COUNT] =
 
 logger_dma_buffer_t logger_dma_get(logger_dma_id_t id)
 {
-  if ((uint32_t)id >= LOG_COUNT) { return (logger_dma_buffer_t){NULL, 0U}; }
+  if ((uint32_t)id >= LOG_COUNT)
+  {
+    return (logger_dma_buffer_t){NULL, 0U};
+  }
   return buffers[id];
 }

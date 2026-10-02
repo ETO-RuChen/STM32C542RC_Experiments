@@ -1,5 +1,10 @@
-/* GNU ld wrappers keep generated initialization/IRQ sources unchanged.
-   Recheck these entry points when regenerating with a new HAL version. */
+/**
+ * @file app_diagnostics.c
+ * @brief 用 GNU ld --wrap 截获初始化失败，并在 HAL 清通道前保存 DMA 现场。
+ *
+ * 这样无需直接修改 CubeMX2 生成的 mx_tim2.c、mx_usart2.c 或 HAL IRQ 源码。
+ * 更换 HAL 版本、链接器或函数名后，必须同步复核 CMake 中的 --wrap 入口。
+ */
 #include "app_main.h"
 #include "app_config.h"
 #include "dma_graph.h"
@@ -15,6 +20,7 @@ void __real_HAL_DMA_IRQHandler(hal_dma_handle_t *hdma);
 
 static void init_failed(app_fault_t fault, uint32_t detail)
 {
+  /* 保留第一个初始化错误，避免后续失败覆盖真正的根因。 */
   if (g_app_diagnostics.init_fault == APP_FAULT_NONE)
   {
     g_app_diagnostics.init_fault = fault;
@@ -54,7 +60,7 @@ hal_status_t __wrap_HAL_DMA_SetConfigPeriphDirectXfer(hal_dma_handle_t *hdma,
 void __wrap_HAL_DMA_IRQHandler(hal_dma_handle_t *hdma)
 {
 #if APP_PHASE >= 3
-  /* HAL's error path resets the channel before calling graph_error. */
+  /* HAL 错误路径会先复位通道再回调，必须在进入真实 IRQ handler 前抓寄存器。 */
   dma_graph_capture_error(hdma);
 #endif
   __real_HAL_DMA_IRQHandler(hdma);

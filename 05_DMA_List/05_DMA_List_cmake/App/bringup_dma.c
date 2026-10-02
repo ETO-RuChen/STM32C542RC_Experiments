@@ -1,3 +1,9 @@
+/**
+ * @file bringup_dma.c
+ * @brief APP_PHASE=2 的 UART Direct DMA 与 TIM2_UP Direct DMA 单次自检。
+ *
+ * 该文件只在 P2 生成实际代码。最终 P7 不调用这里的 Direct DMA 路径。
+ */
 #include "bringup_dma.h"
 #include "app_main.h"
 #include "bsp_led.h"
@@ -15,6 +21,7 @@ static const char done_log[] = "[P2] PASS: TIM2 DMA complete, CCR1=0, UART DMA c
 
 static void timer_done(hal_dma_handle_t *hdma)
 {
+  /* 先关更新 DMA 请求，防止传输完成后继续产生无接收者的硬件请求。 */
   LL_TIM_DisableDMAReq_UPDATE(TIM2);
   g_bringup_dma.elapsed_ms = HAL_GetTick() - g_bringup_dma.start_ms;
   g_bringup_dma.remaining_bytes = HAL_DMA_GetDirectXferRemainingDataByte(hdma);
@@ -56,6 +63,7 @@ static void wait_completions(uint32_t uart_count, uint32_t timer_count, uint32_t
 
 _Noreturn void bringup_direct_run(void)
 {
+  /* 2000 个样本：前 1000 ms 渐亮，后 1000 ms 渐暗并回到 CCR1=0。 */
   for (uint32_t i = 0U; i < 1000U; ++i)
   {
     direct_lut[i] = i;
@@ -71,6 +79,7 @@ _Noreturn void bringup_direct_run(void)
   wait_completions(1U, 0U, 100U);
 
   __DMB();
+  /* DMB 保证 LUT 写入在 DMA 读取 SRAM 之前已经对总线可见。 */
   app_check_status(HAL_DMA_StartDirectXfer_IT_Opt(hdma, (uint32_t)direct_lut,
                     (uint32_t)&TIM2->CCR1, sizeof(direct_lut), HAL_DMA_OPT_IT_NONE),
                     APP_FAULT_DMA_START);
