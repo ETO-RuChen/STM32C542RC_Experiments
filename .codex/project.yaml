@@ -1,0 +1,20 @@
+project: stm32c5
+board:
+  name: NUCLEO-C542RC
+  board_id: MB2213
+toolchain:
+  generator: STM32CubeMX
+  ide: VS Code
+  debug: ST-LINK
+workflow:
+  default_branch: main
+  integration_branch: develop
+  one_goal_per_turn: true
+validation:
+  require_build: true
+  require_hardware_test_when_applicable: true
+serial:
+  default_baud: 115200
+  formats:
+    - text
+    - vofa-justfloat
